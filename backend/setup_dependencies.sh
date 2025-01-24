@@ -16,17 +16,8 @@ sudo apt-get install -y \
     nginx
 
 # 2. Create project directory (if you haven’t already)
-PROJECT_DIR="/opt/flask_app"
-sudo mkdir -p "$PROJECT_DIR"
+PROJECT_DIR="./"
 sudo chown "$USER:$USER" "$PROJECT_DIR"
-
-# 3. Copy (or move) your project files into $PROJECT_DIR
-#    For demonstration, we assume you are already in the project directory
-#    containing requirements.txt. Adjust paths as needed.
-cp requirements.txt "$PROJECT_DIR"/
-
-# 4. Create and activate a virtual environment
-cd "$PROJECT_DIR"
 python3 -m venv venv
 source venv/bin/activate
 
