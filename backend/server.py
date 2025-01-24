@@ -16,7 +16,7 @@ app.secret_key = APP_SECRET_KEY
 POSTGRES_USER = os.getenv('POSTGRES_USER', '')
 POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', '')
 POSTGRES_URL = os.getenv('POSTGRES_URL', '')
-POSTGRES_PORT = os.getenv('POSTGRES_URL', '25060')
+POSTGRES_PORT = os.getenv('POSTGRES_PORT', '25060')
 POSTGRES_DB = os.getenv('POSTGRES_DB', 'defaultdb')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_URL}:{POSTGRES_PORT}/{POSTGRES_DB}'
@@ -199,4 +199,4 @@ def download_file(filename):
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000, host="0.0.0.0")
