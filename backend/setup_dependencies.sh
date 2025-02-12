@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-
+export DEBIAN_FRONTEND=noninteractive
+export DEBCONF_NONINTERACTIVE_SEEN=true
 # Exit script on any error
 set -e
 
 # 1. Update and install system-level dependencies
 sudo apt-get update
-sudo apt-get install -y \
+sudo apt-get install -y  \
     python3 \
     python3-venv \
     python3-pip \
@@ -13,7 +14,9 @@ sudo apt-get install -y \
     libpq-dev \
     build-essential \
     postgresql \
-    nginx
+    nginx \
+    -o Dpkg::Options::="--force-confdef" \
+    -o Dpkg::Options::="--force-confold"
 
 # 2. Create project directory (if you haven’t already)
 PROJECT_DIR="./"
@@ -35,6 +38,7 @@ sudo bash -c "cat > $NGINX_CONF" <<EOF
 server {
     listen 80;
     server_name _;  # or your domain/IP
+    client_max_body_size 50M;
 
     location / {
         proxy_pass http://127.0.0.1:5000;

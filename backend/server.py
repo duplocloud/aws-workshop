@@ -41,7 +41,10 @@ class User(db.Model):
 # ------------------------------------------------------------------
 # Make sure tables exist
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except:
+        print("continue")
 
 # ------------------------------------------------------------------
 # 4. Configure Boto3 for DigitalOcean Spaces
