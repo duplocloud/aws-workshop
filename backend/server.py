@@ -1,4 +1,6 @@
 import os
+import psycopg2
+from psycopg2 import sql, OperationalError
 from flask import Flask, request, redirect, url_for, render_template, session, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -19,7 +21,41 @@ POSTGRES_URL = os.getenv('POSTGRES_URL', '')
 POSTGRES_PORT = os.getenv('POSTGRES_PORT', '25060')
 POSTGRES_DB = os.getenv('POSTGRES_DB', 'defaultdb')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_URL}:{POSTGRES_PORT}/{POSTGRES_DB}'
+def create_db_if_not_exists():
+    """Connect to the default database and create the target db if it doesn't exist."""
+    try:
+        # Connect to the default 'postgres' database
+        conn = psycopg2.connect(
+            dbname='postgres',
+            user=POSTGRES_USER,
+            password=POSTGRES_PASSWORD,
+            host=POSTGRES_URL,
+            port=POSTGRES_PORT
+        )
+        conn.autocommit = True
+        cur = conn.cursor()
+        # Check if the target database exists
+        cur.execute("SELECT 1 FROM pg_database WHERE datname=%s", (POSTGRES_DB,))
+        exists = cur.fetchone()
+        if not exists:
+            cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(POSTGRES_DB)))
+            print(f"Database '{POSTGRES_DB}' created.")
+        else:
+            print(f"Database '{POSTGRES_DB}' already exists.")
+        cur.close()
+        conn.close()
+    except OperationalError as e:
+        print(f"Error connecting to PostgreSQL: {e}")
+    except Exception as e:
+        print(f"Error creating database: {e}")
+
+# Create the database if it doesn't exist
+create_db_if_not_exists()
+
+# Now configure SQLAlchemy to use the target database
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_URL}:{POSTGRES_PORT}/{POSTGRES_DB}'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -37,26 +73,22 @@ class User(db.Model):
         return f"<User {self.username}>"
 
 # ------------------------------------------------------------------
-# 3. Initialize Database
+# 3. Initialize Database (Create tables)
 # ------------------------------------------------------------------
-# Make sure tables exist
 with app.app_context():
     try:
         db.create_all()
-    except:
-        print("continue")
+    except Exception as e:
+        print("Error during db.create_all():", e)
 
 # ------------------------------------------------------------------
 # 4. Configure Boto3 for DigitalOcean Spaces
 # ------------------------------------------------------------------
-# Set your DigitalOcean credentials and region
-# Usually, you'd read these from environment variables or a config file
 DO_SPACES_KEY = os.getenv('DO_SPACES_KEY', '')
 DO_SPACES_SECRET = os.getenv('DO_SPACES_SECRET', '')
 DO_SPACES_REGION = os.getenv('DO_SPACES_REGION', '')
 DO_SPACES_ENDPOINT = f'https://{DO_SPACES_REGION}.digitaloceanspaces.com'
 DO_SPACES_BUCKET = os.getenv('DO_SPACES_BUCKET', '')
-
 
 s3_client = boto3.client('s3',
     region_name=DO_SPACES_REGION,
@@ -65,7 +97,6 @@ s3_client = boto3.client('s3',
     aws_secret_access_key=DO_SPACES_SECRET
 )
 
-# Helper function to check if filename extension is an image
 def is_image(filename: str) -> bool:
     extension = filename.rsplit('.', 1)[-1].lower()
     return extension in ['jpg', 'jpeg', 'png', 'gif', 'webp']
@@ -76,16 +107,10 @@ def is_image(filename: str) -> bool:
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    """
-    If GET: Show the file list from DigitalOcean Spaces in a sortable/paginated table,
-            along with an upload form.
-    If POST: Handle file upload, then redirect back to GET.
-    """
     if 'user_id' not in session:
         flash('Please log in to access Duplo File Storage.')
         return redirect(url_for('login'))
 
-    # Handle file upload if POST
     if request.method == 'POST':
         if 'file' not in request.files:
             flash('No file part in the request.')
@@ -109,14 +134,12 @@ def index():
 
         return redirect(url_for('index'))
 
-    # If GET: list objects
     files = []
     try:
         response = s3_client.list_objects_v2(Bucket=DO_SPACES_BUCKET)
         contents = response.get('Contents', [])
         for obj in contents:
             file_key = obj['Key']
-            # Build direct URL for thumbnail if it's an image (public-read)
             file_url = f"https://{DO_SPACES_BUCKET}.{DO_SPACES_REGION}.digitaloceanspaces.com/{file_key}"
             files.append({
                 'name': file_key,
@@ -129,23 +152,18 @@ def index():
 
     return render_template('index.html', files=files, bucket=DO_SPACES_BUCKET, region=DO_SPACES_REGION)
 
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """ Handle user registration """
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
 
-        # Check if the user already exists
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
             flash('Username already taken. Please choose a different one.')
             return redirect(url_for('register'))
 
-        # Generate a password hash with 'pbkdf2:sha256'
         hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
-
         new_user = User(username=username, password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
@@ -154,10 +172,8 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html')
 
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """ Handle user login """
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -172,20 +188,14 @@ def login():
             return redirect(url_for('login'))
     return render_template('login.html')
 
-
 @app.route('/logout')
 def logout():
-    """ Log out the user by clearing the session """
     session.pop('user_id', None)
     flash('You have been logged out.')
     return redirect(url_for('login'))
 
-
 @app.route('/download/<path:filename>', methods=['GET'])
 def download_file(filename):
-    """
-    Download file from DigitalOcean Spaces.
-    """
     if 'user_id' not in session:
         flash('Please log in to download files.')
         return redirect(url_for('login'))
