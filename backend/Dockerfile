@@ -31,25 +31,25 @@ RUN python3 -m venv venv \
  && pip install -r requirements.txt
 
 # Create a minimal Nginx server block to proxy to Flask on port 5000
-RUN bash -c "cat > /etc/nginx/sites-available/flask_app <<EOF
-server {
-    listen 80;
-    server_name _;  # Replace with your domain/IP if you have one
-    client_max_body_size 50M;
+RUN printf 'server {\n\
+    listen 80;\n\
+    server_name _;\n\
+    client_max_body_size 50M;\n\
+\n\
+    location / {\n\
+        proxy_pass http://127.0.0.1:5000;\n\
+        proxy_set_header Host $host;\n\
+        proxy_set_header X-Real-IP $remote_addr;\n\
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
+    }\n\
+}\n' > /etc/nginx/sites-available/flask_app
 
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    }
-}
-EOF"
 
 # Enable the new site and remove the default
 RUN rm -f /etc/nginx/sites-enabled/default \
  && ln -sfn /etc/nginx/sites-available/flask_app /etc/nginx/sites-enabled/flask_app \
- && nginx -t
+ && nginx -t \ 
+ && chmod +x start.sh
 
 # Expose port 80 (for Nginx) and port 5000 (for Flask), if you want to access them directly
 EXPOSE 80
@@ -59,4 +59,4 @@ EXPOSE 5000
 # 1. Start PostgreSQL in the background
 # 2. Activate your virtual env, run Flask on port 5000, also in the background
 # 3. Keep nginx in the foreground (daemon off) so the container stays alive
-CMD bash start.sh
+ENTRYPOINT /app/start.sh
