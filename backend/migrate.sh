@@ -2,7 +2,7 @@
 # migrate_db.sh
 #
 # This script dumps a PostgreSQL database from a source host and restores it
-# to a destination host. It prompts for host, database name, user, and password.
+# to a destination host. It prompts for host, database name, user, password, and port.
 # It uses a progress bar (via pv, if installed) or a simple spinner if pv isn’t available.
 
 # Check required commands
@@ -26,6 +26,8 @@ spinner() {
 # Prompt for source database details
 echo "Enter source database connection details:"
 read -p "Source Host: " SRC_HOST
+read -p "Source Port (default: 5432): " SRC_PORT
+SRC_PORT=${SRC_PORT:-5432}  # Use 5432 if empty
 read -p "Source Database Name: " SRC_DB
 read -p "Source User: " SRC_USER
 read -s -p "Source Password: " SRC_PASSWORD
@@ -34,6 +36,8 @@ echo -e "\n"
 # Prompt for destination database details
 echo "Enter destination database connection details:"
 read -p "Destination Host: " DEST_HOST
+read -p "Destination Port (default: 5432): " DEST_PORT
+DEST_PORT=${DEST_PORT:-5432}  # Use 5432 if empty
 read -p "Destination Database Name: " DEST_DB
 read -p "Destination User: " DEST_USER
 read -s -p "Destination Password: " DEST_PASSWORD
@@ -49,12 +53,12 @@ echo "Starting database dump from source..."
 if command -v pv >/dev/null 2>&1; then
     echo "Using pv for progress display."
     # Note: Without a known total size, pv will display a transfer rate and elapsed time.
-    PGPASSWORD="$SRC_PASSWORD" pg_dump -h "$SRC_HOST" -U "$SRC_USER" "$SRC_DB" | pv > "$DUMP_FILE"
+    PGPASSWORD="$SRC_PASSWORD" pg_dump -h "$SRC_HOST" -p "$SRC_PORT" -U "$SRC_USER" "$SRC_DB" | pv > "$DUMP_FILE"
     DUMP_EXIT_CODE=${PIPESTATUS[0]}
 else
     echo "pv not found; using spinner..."
     # Run pg_dump in background and show spinner
-    PGPASSWORD="$SRC_PASSWORD" pg_dump -h "$SRC_HOST" -U "$SRC_USER" "$SRC_DB" > "$DUMP_FILE" &
+    PGPASSWORD="$SRC_PASSWORD" pg_dump -h "$SRC_HOST" -p "$SRC_PORT" -U "$SRC_USER" "$SRC_DB" > "$DUMP_FILE" &
     dump_pid=$!
     spinner $dump_pid
     wait $dump_pid
@@ -76,11 +80,11 @@ if command -v pv >/dev/null 2>&1; then
     echo "Using pv for progress display."
     # Get the dump file size so that pv can show progress
     filesize=$(stat -c %s "$DUMP_FILE")
-    pv -s "$filesize" "$DUMP_FILE" | PGPASSWORD="$DEST_PASSWORD" psql -h "$DEST_HOST" -U "$DEST_USER" "$DEST_DB"
+    pv -s "$filesize" "$DUMP_FILE" | PGPASSWORD="$DEST_PASSWORD" psql -h "$DEST_HOST" -p "$DEST_PORT" -U "$DEST_USER" "$DEST_DB"
     RESTORE_EXIT_CODE=${PIPESTATUS[1]}
 else
     echo "pv not found; using spinner..."
-    PGPASSWORD="$DEST_PASSWORD" psql -h "$DEST_HOST" -U "$DEST_USER" "$DEST_DB" < "$DUMP_FILE" &
+    PGPASSWORD="$DEST_PASSWORD" psql -h "$DEST_HOST" -p "$DEST_PORT" -U "$DEST_USER" "$DEST_DB" < "$DUMP_FILE" &
     restore_pid=$!
     spinner $restore_pid
     wait $restore_pid
