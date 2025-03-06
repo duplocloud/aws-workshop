@@ -93,7 +93,7 @@ with app.app_context():
 BUCKET = os.getenv('BUCKET', '')
 
 if CLOUD_PROVIDER.lower() == "aws":
-    s3_client = boto3.client()
+    s3_client = boto3.client('s3')
 else:
     DO_SPACES_KEY = os.getenv('DO_SPACES_KEY', '')
     DO_SPACES_SECRET = os.getenv('DO_SPACES_SECRET', '')
