@@ -94,6 +94,7 @@ BUCKET = os.getenv('BUCKET', '')
 
 if CLOUD_PROVIDER.lower() == "aws":
     s3_client = boto3.client('s3')
+    DO_SPACES_REGION = os.getenv('DO_SPACES_REGION', '-')
 else:
     DO_SPACES_KEY = os.getenv('DO_SPACES_KEY', '')
     DO_SPACES_SECRET = os.getenv('DO_SPACES_SECRET', '')
