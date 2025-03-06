@@ -89,15 +89,15 @@ with app.app_context():
 # ------------------------------------------------------------------
 # 4. Configure Boto3 for DigitalOcean Spaces
 # ------------------------------------------------------------------
-DO_SPACES_KEY = os.getenv('DO_SPACES_KEY', '')
-DO_SPACES_SECRET = os.getenv('DO_SPACES_SECRET', '')
-DO_SPACES_REGION = os.getenv('DO_SPACES_REGION', '')
-DO_SPACES_ENDPOINT = f'https://{DO_SPACES_REGION}.digitaloceanspaces.com'
-DO_SPACES_BUCKET = os.getenv('DO_SPACES_BUCKET', '')
+BUCKET = os.getenv('BUCKET', '')
 
 if CLOUD_PROVIDER.lower() == "aws":
     s3_client = boto3.client()
 else:
+    DO_SPACES_KEY = os.getenv('DO_SPACES_KEY', '')
+    DO_SPACES_SECRET = os.getenv('DO_SPACES_SECRET', '')
+    DO_SPACES_REGION = os.getenv('DO_SPACES_REGION', '')
+    DO_SPACES_ENDPOINT = f'https://{DO_SPACES_REGION}.digitaloceanspaces.com'
     s3_client = boto3.client('s3',
         region_name=DO_SPACES_REGION,
         endpoint_url=DO_SPACES_ENDPOINT,
@@ -132,7 +132,7 @@ def index():
         try:
             s3_client.upload_fileobj(
                 uploaded_file,
-                DO_SPACES_BUCKET,
+                BUCKET,
                 uploaded_file.filename,
                 ExtraArgs={'ACL': 'public-read'}
             )
@@ -144,11 +144,11 @@ def index():
 
     files = []
     try:
-        response = s3_client.list_objects_v2(Bucket=DO_SPACES_BUCKET)
+        response = s3_client.list_objects_v2(Bucket=BUCKET)
         contents = response.get('Contents', [])
         for obj in contents:
             file_key = obj['Key']
-            file_url = f"https://{DO_SPACES_BUCKET}.{DO_SPACES_REGION}.digitaloceanspaces.com/{file_key}"
+            file_url = f"https://{BUCKET}.{DO_SPACES_REGION}.digitaloceanspaces.com/{file_key}"
             files.append({
                 'name': file_key,
                 'size': obj['Size'],
@@ -158,7 +158,7 @@ def index():
     except Exception as e:
         flash(f"Error listing files: {str(e)}")
 
-    return render_template('index.html', files=files, bucket=DO_SPACES_BUCKET, region=DO_SPACES_REGION)
+    return render_template('index.html', files=files, bucket=BUCKET, region=DO_SPACES_REGION)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -209,7 +209,7 @@ def download_file(filename):
         return redirect(url_for('login'))
 
     try:
-        file_obj = s3_client.get_object(Bucket=DO_SPACES_BUCKET, Key=filename)
+        file_obj = s3_client.get_object(Bucket=BUCKET, Key=filename)
         return send_file(
             BytesIO(file_obj['Body'].read()),
             download_name=filename,
