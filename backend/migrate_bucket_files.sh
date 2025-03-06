@@ -32,7 +32,7 @@ read -p "Enter AWS S3 Bucket Name: " AWS_BUCKET
 read -p "Enter AWS S3 Region (e.g., us-east-1): " AWS_REGION
 read -p "Enter AWS S3 Access Key: " AWS_ACCESS_KEY
 read -s -p "Enter AWS S3 Secret Key: " AWS_SECRET_KEY
-read -s -p "Enter AWS Session Token Secret Key: " AWS_SESSION_TOKEN
+read -s -p "Enter AWS Session Token: " AWS_SESSION_TOKEN
 echo -e "\n"
 
 # Create a temporary rclone config file
@@ -52,7 +52,7 @@ provider = AWS
 env_auth = false
 access_key_id = ${AWS_ACCESS_KEY}
 secret_access_key = ${AWS_SECRET_KEY}
-aws_session_token = ${AWS_SESSION_TOKEN}
+session_token = ${AWS_SESSION_TOKEN}
 region = ${AWS_REGION}
 EOF
 
