@@ -12,6 +12,11 @@ APP_SECRET_KEY = os.getenv('APP_SECRET_KEY', '')
 app.secret_key = APP_SECRET_KEY
 
 # ------------------------------------------------------------------
+# 1. Configure Application
+# ------------------------------------------------------------------
+CLOUD_PROVIDER = os.getenv('CLOUD_PROVIDER', '')
+
+# ------------------------------------------------------------------
 # 1. Configure Database (PostgreSQL)
 # ------------------------------------------------------------------
 # Example: postgresql://username:password@localhost:5432/your_db_name
@@ -90,12 +95,15 @@ DO_SPACES_REGION = os.getenv('DO_SPACES_REGION', '')
 DO_SPACES_ENDPOINT = f'https://{DO_SPACES_REGION}.digitaloceanspaces.com'
 DO_SPACES_BUCKET = os.getenv('DO_SPACES_BUCKET', '')
 
-s3_client = boto3.client('s3',
-    region_name=DO_SPACES_REGION,
-    endpoint_url=DO_SPACES_ENDPOINT,
-    aws_access_key_id=DO_SPACES_KEY,
-    aws_secret_access_key=DO_SPACES_SECRET
-)
+if CLOUD_PROVIDER.lower() == "aws":
+    s3_client = boto3.client()
+else:
+    s3_client = boto3.client('s3',
+        region_name=DO_SPACES_REGION,
+        endpoint_url=DO_SPACES_ENDPOINT,
+        aws_access_key_id=DO_SPACES_KEY,
+        aws_secret_access_key=DO_SPACES_SECRET
+    )
 
 def is_image(filename: str) -> bool:
     extension = filename.rsplit('.', 1)[-1].lower()
