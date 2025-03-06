@@ -93,8 +93,15 @@ with app.app_context():
 BUCKET = os.getenv('BUCKET', '')
 
 if CLOUD_PROVIDER.lower() == "aws":
-    s3_client = boto3.client('s3')
-    DO_SPACES_REGION = os.getenv('DO_SPACES_REGION', '-')
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
+    AWS_SESSION_TOKEN = os.getenv('AWS_SESSION_TOKEN', '')
+    DO_SPACES_REGION = os.getenv('AWS_DEFAULT_REGION', '')
+    s3_client = boto3.client('s3',
+                         region_name=DO_SPACES_REGION,
+                         aws_access_key_id=AWS_ACCESS_KEY_ID,
+                         aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                         aws_session_token=AWS_SESSION_TOKEN)
 else:
     DO_SPACES_KEY = os.getenv('DO_SPACES_KEY', '')
     DO_SPACES_SECRET = os.getenv('DO_SPACES_SECRET', '')
@@ -150,7 +157,10 @@ def index():
         contents = response.get('Contents', [])
         for obj in contents:
             file_key = obj['Key']
-            file_url = f"https://{BUCKET}.{DO_SPACES_REGION}.digitaloceanspaces.com/{file_key}"
+            if CLOUD_PROVIDER.lower() != 'aws':
+                file_url = f"https://{BUCKET}.{DO_SPACES_REGION}.digitaloceanspaces.com/{file_key}"
+            else:
+                file_url = f"https://{BUCKET}.s3.{DO_SPACES_REGION}.amazonaws.com/{file_key}"
             files.append({
                 'name': file_key,
                 'size': obj['Size'],
