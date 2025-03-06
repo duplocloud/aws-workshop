@@ -89,6 +89,7 @@ with app.app_context():
 # ------------------------------------------------------------------
 # 4. Configure Boto3 for DigitalOcean Spaces
 # ------------------------------------------------------------------
+
 BUCKET = os.getenv('BUCKET', '')
 
 if CLOUD_PROVIDER.lower() == "aws":
